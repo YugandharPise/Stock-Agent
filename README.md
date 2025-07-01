@@ -32,3 +32,5 @@ Login on all sites. Install adblocker. Close window once done.
 Login using the same google account, give both permissions, then copy the code in the url and paste in the terminal. This will create token.json.
 
 10. Create folder for storing all the screenshots.
+
+11. Go to google console cloud and download the json of your credentials. Name it "oauth2_credentials.json" and store it in the project folder. 
