@@ -138,38 +138,42 @@ async function saveImagesToGoogleDoc(stockName, imagePaths = [], userImagePath =
     const uploadedImageFileIds = [];
     let imageCounter = 0;
     console.log(`Inserting images into Google Document.`);
-    // user-uploaded image
-      if (userImagePath && fs.existsSync(userImagePath)) {
-        const fileMetadata = { name: `${uuidv4()}.png`, parents: [DRIVE_PARENT_FOLDER_ID] };
-        const media = { mimeType: "image/png", body: fs.createReadStream(userImagePath) };
-        const uploaded = await drive.files.create({ resource: fileMetadata, media, fields: "id" });
-        await drive.permissions.create({ fileId: uploaded.data.id, requestBody: { role: "reader", type: "anyone" } });
-        const publicUrl = `https://drive.google.com/uc?id=${uploaded.data.id}`;
+   // user-uploaded image
+if (userImagePath && fs.existsSync(userImagePath)) {
+  const fileMetadata = { name: `${uuidv4()}.png`, parents: [DRIVE_PARENT_FOLDER_ID] };
+  const media = { mimeType: "image/png", body: fs.createReadStream(userImagePath) };
+  const uploaded = await drive.files.create({ resource: fileMetadata, media, fields: "id" });
+  await drive.permissions.create({ fileId: uploaded.data.id, requestBody: { role: "reader", type: "anyone" } });
 
-        const insertIndex = await getDocumentEndIndex(documentId, docs);
-        await docs.documents.batchUpdate({
-          documentId,
-          requestBody: {
-            requests: [
-              { insertPageBreak: { location: { index: insertIndex } } },
-              {
-                insertInlineImage: {
-                  location: { index: insertIndex + 1 },
-                  uri: publicUrl,
-                  objectSize: {
-                    width: { magnitude: 500, unit: "PT" },
-                    height: { magnitude: 500, unit: "PT" }
-                  }
-                }
-              },
-              {
-                insertText: { location: { index: insertIndex + 2 }, text: "\n" }
-              }
-            ]
+  // save for deletion later
+  uploadedImageFileIds.push(uploaded.data.id);
+
+  const publicUrl = `https://drive.google.com/uc?id=${uploaded.data.id}`;
+
+  const insertIndex = await getDocumentEndIndex(documentId, docs);
+  await docs.documents.batchUpdate({
+    documentId,
+    requestBody: {
+      requests: [
+        { insertPageBreak: { location: { index: insertIndex } } },
+        {
+          insertInlineImage: {
+            location: { index: insertIndex + 1 },
+            uri: publicUrl,
+            objectSize: {
+              width: { magnitude: 500, unit: "PT" },
+              height: { magnitude: 500, unit: "PT" }
+            }
           }
-        });
-        console.log("Inserted user uploaded image.");
-      }
+        },
+        {
+          insertText: { location: { index: insertIndex + 2 }, text: "\n" }
+        }
+      ]
+    }
+  });
+  console.log("Inserted user uploaded image.");
+}
     for (const filePath of sortedImages) {
       if (!fs.existsSync(filePath)) continue;
 
