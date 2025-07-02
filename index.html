@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stock Screenshot Bot</title>
+  <style>
+    body {
+      background: linear-gradient(135deg, #2196f3, #21cbf3);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      width: 400px;
+      max-width: 90%;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.3s ease;
+    }
+    .card:hover {
+      transform: scale(1.01);
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-size: 1.5em;
+      color: #333;
+      text-align: center;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      font-size: 14px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      box-sizing: border-box;
+      transition: border 0.3s;
+    }
+    input:focus, textarea:focus {
+      border-color: #2196f3;
+      outline: none;
+    }
+    .file-input-wrapper {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 5px 10px;
+      background-color: #fafafa;
+      overflow: hidden;
+    }
+    .file-input-wrapper input[type="file"] {
+      border: none;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #2196f3;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 12px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      width: 100%;
+      transition: background-color 0.3s;
+      text-align: center;
+    }
+    button:hover {
+      background-color: #1976d2;
+    }
+    button:disabled {
+      background-color: #90caf9;
+      cursor: not-allowed;
+    }
+    #status {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #555;
+      word-wrap: break-word;
+      word-break: break-all;
+      max-width: 100%;
+      text-align: center;
+    }
+    a {
+      display: block;
+      margin-top: 15px;
+      color: #2e7d32;
+      text-decoration: underline;
+      font-weight: bold;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Stock Screenshot Bot</h1>
+    <form id="form">
+      <input type="text" name="stock" id="stock" placeholder="Stock Name" required />
+      <input type="text" name="symbol" id="symbol" placeholder="Stock Symbol" required />
+      <textarea name="comment" id="comment" placeholder="Add any comments..."></textarea>
+      <div class="file-input-wrapper">
+        <input type="file" name="image" id="image" accept="image/png, image/jpeg" />
+      </div>
+      <button type="submit" id="runBtn">Generate Document</button>
+    </form>
+    <p id="status"></p>
+    <a id="docLink" target="_blank" style="display:none;">View Generated Document</a>
+  </div>
+  <script>
+    document.getElementById('form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const stock = document.getElementById('stock').value.trim();
+      const symbol = document.getElementById('symbol').value.trim();
+      const comment = document.getElementById('comment').value.trim();
+      const image = document.getElementById('image').files[0];
+      const status = document.getElementById('status');
+      const docLink = document.getElementById('docLink');
+      const button = document.getElementById('runBtn');
+
+      if (!stock || !symbol) {
+        status.innerText = "Please enter stock name and symbol.";
+        return;
+      }
+
+      button.disabled = true;
+      status.innerText = "Processing...";
+      docLink.style.display = 'none';
+
+      const formData = new FormData();
+      formData.append('stock', stock);
+      formData.append('symbol', symbol);
+      formData.append('comment', comment);
+      if (image) formData.append('image', image);
+
+      const res = await fetch('/screenshot', {
+        method: 'POST',
+        body: formData
+      });
+
+      const text = await res.text();
+      status.innerText = text;
+
+      if (res.status === 200 && text.includes('https://docs.google.com')) {
+        const link = text.match(/https:\/\/docs\.google\.com\/[^\s]+/)[0];
+        docLink.href = link;
+        docLink.style.display = 'block';
+      }
+
+      button.disabled = false;
+    });
+  </script>
+</body>
+</html>
