@@ -19,18 +19,19 @@ app.post('/screenshot', async (req, res) => {
   let userImagePath = null;
 
   try {
-    const stockName = req.body.stock?.trim();
+    const stockName = req.body.stockName?.trim();
+    const stockSymbol = req.body.stockSymbol?.trim();
     const comment = req.body.comment?.trim() || '';
     const userImage = req.files?.image;
 
-    if (!stockName) {
-      return res.status(400).send('Missing stock name');
+    if (!stockName || !stockSymbol) {
+      return res.status(400).send('Missing stock name or symbol.');
     }
 
     console.log("Starting screenshot and document creation for: " + stockName);
 
     // Take screenshots and get their paths
-    const screenshots = await takeAllScreenshots(stockName);
+    const screenshots = await takeAllScreenshots(stockName, stockSymbol);
 
     if (!screenshots || screenshots.length === 0) {
       return res.status(500).send('No screenshots captured');
