@@ -27,7 +27,7 @@ function createFolders(stockName) {
   };
 }
 
-async function takeAllScreenshots(stockName) {
+async function takeAllScreenshots(stockName, stockSymbol  ) {
   const { basePath, moneycontrolDir, tradingViewDir, stockReportDir } = createFolders(stockName);
 
   const browser = await chromium.launchPersistentContext(PROFILE_PATH, {
@@ -121,6 +121,15 @@ async function takeAllScreenshots(stockName) {
 
       await page.waitForTimeout(3000);
 
+      await page.evaluate(() => {
+  const header = document.querySelector('header');
+  if (header) header.style.display = 'none';
+  const menus = document.querySelectorAll('.megaMenu, .topnav');
+  menus.forEach(el => el.style.display = 'none');
+});
+console.log("Hid header and menus to avoid overlay.");
+
+
       // Scroll screenshots
       let index = 1;
       let previousScroll = -1;
@@ -156,7 +165,7 @@ async function takeAllScreenshots(stockName) {
           for (const tab of financialsTabs) {
             try {
               await page.click(tab.selector, { timeout: 30000 });
-              await page.waitForTimeout(1500);
+              await page.waitForTimeout(2000);
               const tabShot = path.join(moneycontrolDir, `moneycontrol_${tab.name}.png`);
               await page.screenshot({ path: tabShot });
               allScreenshots.push(tabShot);
@@ -191,13 +200,14 @@ async function takeAllScreenshots(stockName) {
           }
         }
       } catch (e) {}
+
     } catch (err) {
       console.error("Error capturing Moneycontrol overview:", err.message);
       await page.screenshot({ path: path.join(moneycontrolDir, 'error.png') });
     }
 
     // TradingView
-    const chartUrl = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(stockName)}`;
+    const chartUrl = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(stockSymbol)}`;
     try {
       await page.goto(chartUrl, { waitUntil: 'load', timeout: 180000 });
       await page.waitForTimeout(4000);
