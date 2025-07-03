@@ -5,7 +5,7 @@ const { chromium } = require('playwright');
 
 const BASE_DIR = path.join(__dirname, 'screenshots');
 const PROFILE_PATH = path.join(__dirname, 'playwright-session');
-const CHROME_PATH = 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe';
+const CHROME_PATH = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 
 function createFolders(stockName) {
   const timestamp = dayjs().format("YYYY-MM-DD_HH-mm-ss");
