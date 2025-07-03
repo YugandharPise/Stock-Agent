@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const path = require('path');
 
-const PROFILE_PATH = path.join(__dirname, 'playwright-session-2');
+const PROFILE_PATH = path.join(__dirname, 'playwright-session');
 const CHROME_PATH = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 
 (async () => {
