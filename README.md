@@ -121,7 +121,24 @@ stock-screenshot-agent/screenshots
 node index.js
 ```
 
-* Then POST to `/screenshot` to trigger the workflow.
+---
+
+## 1️⃣1️⃣ Strting everyday!
+
+To start it everyday, simply open the nodejs command prompt and run this command:
+
+```bash
+cd ..
+cd Hiren Thakker
+cd stock-screenshot-agent
+node index.js
+```
+
+To forward it using an ngrok link, simply open windows powershell, and run this command:
+
+```bash
+ngrok http --url="" 3000
+```
 
 ---
 
