@@ -19,7 +19,7 @@
       padding: 40px;
       border-radius: 12px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-      max-width: 420px;
+      max-width: 450px;
       width: 100%;
       animation: fadeIn 0.8s ease forwards;
     }
@@ -81,6 +81,7 @@
       word-break: break-word;
       min-height: 20px;
       text-align: center;
+      white-space: pre-line;
     }
     a#docLink {
       display: block;
@@ -101,18 +102,19 @@
     <h1>Stock Screenshot Bot</h1>
     <form id="form">
       <label for="stockName">Stock Name</label>
-      <input type="text" name="stockName" id="stockName" placeholder="e.g. Reliance Industries" required />
+      <input type="text" name="stockName" id="stockName" required />
 
       <label for="stockSymbol">Stock Symbol</label>
-      <input type="text" name="stockSymbol" id="stockSymbol" placeholder="e.g. RELIANCE" required />
+      <input type="text" name="stockSymbol" id="stockSymbol" required />
 
       <label for="comment">Comment</label>
-      <textarea name="comment" id="comment" placeholder="Add any comments..."></textarea>
+      <textarea name="comment" id="comment"></textarea>
 
       <label for="image">Upload Image</label>
       <input type="file" name="image" id="image" accept="image/png, image/jpeg" />
 
       <button type="submit" id="runBtn">Generate Document</button>
+      <button type="button" id="resetBtn">Reset</button>
     </form>
 
     <p id="status"></p>
@@ -124,6 +126,7 @@
     const status = document.getElementById('status');
     const docLink = document.getElementById('docLink');
     const button = document.getElementById('runBtn');
+    const resetBtn = document.getElementById('resetBtn');
 
     form.addEventListener('submit', async function (e) {
       e.preventDefault();
@@ -168,6 +171,19 @@
 
       button.disabled = false;
     });
+
+    resetBtn.addEventListener('click', () => {
+      form.reset();
+      status.innerText = '';
+      docLink.style.display = 'none';
+    });
+
+    // SSE
+    const eventSource = new EventSource("/events");
+    eventSource.onmessage = function(event) {
+      status.innerText += "\n" + event.data;
+      status.scrollTop = status.scrollHeight;
+    };
   </script>
 </body>
 </html>
