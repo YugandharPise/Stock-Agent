@@ -6,8 +6,8 @@
 2. Download the git repo from:
    [https://github.com/YugandharPise/Stock-Agent.git](https://github.com/YugandharPise/Stock-Agent.git)
 3. Copy the downloaded files into `stock-screenshot-agent`.
-4. Install Node.js from its official website and set it up.
-5. Install ngrok from its official website and set it up.
+4. Install Node.js from its official website and set it up : [Node JS](https://nodejs.org/en)
+5. Install ngrok from its official website and set it up : [Ngrok](https://dashboard.ngrok.com/get-started/setup/windows)
 6. In the Node.js terminal, run:
 
    ```bash
@@ -32,7 +32,7 @@
 9. In the Node.js terminal, navigate to your project folder:
 
    ```bash
-   cd C:/Users/<your username>/stock-screenshot-agent
+   cd C:\Users\<your username>\stock-screenshot-agent
    ```
 10. Start the bot server:
 
