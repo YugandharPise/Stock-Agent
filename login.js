@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const path = require('path');
 
 const PROFILE_PATH = path.join(__dirname, 'playwright-session-2');
-const CHROME_PATH = 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe';
+const CHROME_PATH = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 
 (async () => {
   const browser = await chromium.launchPersistentContext(PROFILE_PATH, {
