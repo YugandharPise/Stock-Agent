@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stock Screenshot Bot</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #2196f3, #21cbf3);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+    }
+    .container {
+      background: #fff;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      max-width: 450px;
+      width: 100%;
+      animation: fadeIn 0.8s ease forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    h1 {
+      margin-top: 0;
+      color: #333;
+      font-size: 28px;
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+      color: #555;
+      text-align: left;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      margin-top: 5px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 15px;
+      transition: border 0.3s ease, box-shadow 0.3s ease;
+    }
+    input:focus, textarea:focus {
+      border-color: #2196f3;
+      box-shadow: 0 0 5px rgba(33, 150, 243, 0.4);
+      outline: none;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(90deg, #2196f3, #21cbf3);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      margin-top: 20px;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.3s ease;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      background: linear-gradient(90deg, #1976d2, #1b9bd3);
+    }
+    button:disabled {
+      background: #90caf9;
+      cursor: not-allowed;
+    }
+    #status {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #333;
+      word-break: break-word;
+      min-height: 20px;
+      text-align: center;
+      white-space: pre-line;
+    }
+    a#docLink {
+      display: block;
+      margin-top: 15px;
+      text-align: center;
+      color: #2e7d32;
+      font-weight: 600;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+    a#docLink:hover {
+      color: #1b5e20;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Stock Screenshot Bot</h1>
+    <form id="form">
+      <label for="stockName">Stock Name</label>
+      <input type="text" name="stockName" id="stockName" required />
+
+      <label for="stockSymbol">Stock Symbol</label>
+      <input type="text" name="stockSymbol" id="stockSymbol" required />
+
+      <label for="comment">Comment</label>
+      <textarea name="comment" id="comment"></textarea>
+
+      <label for="image">Upload Image</label>
+      <input type="file" name="image" id="image" accept="image/png, image/jpeg" />
+
+      <button type="submit" id="runBtn">Generate Document</button>
+      <button type="button" id="resetBtn">Reset</button>
+    </form>
+
+    <p id="status"></p>
+    <a id="docLink" target="_blank" style="display:none;">View Generated Document</a>
+  </div>
+
+  <script>
+    const form = document.getElementById('form');
+    const status = document.getElementById('status');
+    const docLink = document.getElementById('docLink');
+    const button = document.getElementById('runBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const stockName = document.getElementById('stockName').value.trim();
+      const stockSymbol = document.getElementById('stockSymbol').value.trim();
+      const comment = document.getElementById('comment').value.trim();
+      const image = document.getElementById('image').files[0];
+
+      if (!stockName || !stockSymbol) {
+        status.innerText = "Please enter both stock name and symbol.";
+        return;
+      }
+
+      button.disabled = true;
+      status.innerText = "Processing...";
+      docLink.style.display = 'none';
+
+      const formData = new FormData();
+      formData.append('stockName', stockName);
+      formData.append('stockSymbol', stockSymbol);
+      formData.append('comment', comment);
+      if (image) formData.append('image', image);
+
+      try {
+        const res = await fetch('/screenshot', {
+          method: 'POST',
+          body: formData
+        });
+
+        const text = await res.text();
+        status.innerText = text;
+
+        if (res.status === 200 && text.includes('https://docs.google.com')) {
+          docLink.href = text.match(/https:\/\/docs\.google\.com\/[^\s]+/)[0];
+          docLink.style.display = 'block';
+        }
+
+      } catch (err) {
+        status.innerText = "Error communicating with server: " + err.message;
+      }
+
+      button.disabled = false;
+    });
+
+    resetBtn.addEventListener('click', () => {
+      form.reset();
+      status.innerText = '';
+      docLink.style.display = 'none';
+    });
+
+    // SSE
+    const eventSource = new EventSource("/events");
+    eventSource.onmessage = function(event) {
+      status.innerText = event.data;  // only show current status
+    };
+
+    eventSource.addEventListener("done", function(event) {
+      const link = event.data;
+      docLink.href = link;
+      docLink.style.display = 'block';
+      status.innerText = "Document is ready!";
+    });
+  </script>
+</body>
+</html>
