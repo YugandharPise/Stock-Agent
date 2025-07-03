@@ -123,7 +123,7 @@ node index.js
 
 ---
 
-## 1️⃣1️⃣ Strting everyday!
+## 1️⃣1️⃣ Starting everyday!
 
 To start it everyday, simply open the nodejs command prompt and run this command:
 
