@@ -32,7 +32,7 @@
 9. In the Node.js terminal, navigate to your project folder:
 
    ```bash
-   cd C:\Users\<your username>\stock-screenshot-agent
+   cd C:\Users\Hiren Thakkar\stock-screenshot-agent
    ```
 10. Start the bot server:
 
@@ -44,7 +44,7 @@
 11. Open a Windows PowerShell terminal and run:
 
     ```bash
-    ngrok http --url=<your ngrok url> 3000
+    ngrok http --url=sturgeon-innocent-roughly.ngrok-free.app 3000
     ```
 12. Go to the ngrok forwarding link in your browser to start automating!
 
