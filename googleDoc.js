@@ -82,7 +82,7 @@ async function getDocumentEndIndex(documentId, docs) {
   }
 }
 
-async function saveImagesToGoogleDoc(stockName, imagePaths = [], userImagePath = null, comment = "") {
+async function saveImagesToGoogleDoc(stockName, stockSymbol, imagePaths = [], userImagePath = null, comment = "") {
   try {
     if (!stockName || typeof stockName !== "string") {
       throw new Error("Invalid stock name provided");
@@ -93,7 +93,7 @@ async function saveImagesToGoogleDoc(stockName, imagePaths = [], userImagePath =
     const docs = google.docs({ version: "v1", auth });
 
     const timestamp = dayjs().format("YYYY-MM-DD_HH-mm-ss");
-    const docTitle = `${stockName}-${timestamp}`;
+    const docTitle = `${stockSymbol}-${timestamp}`;
 
     console.log("Creating Google Document...");
 
