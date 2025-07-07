@@ -83,7 +83,7 @@ app.post('/screenshot', async (req, res) => {
       console.log("User image uploaded to: " + userImagePath);
     }
 
-    const docUrl = await saveImagesToGoogleDoc(stockName, screenshots, userImagePath, comment);
+    const docUrl = await saveImagesToGoogleDoc(stockName, stockSymbol, screenshots, userImagePath, comment);
 
     const endTime = Date.now();
     const totalTimeSeconds = ((endTime - startTime) / 1000).toFixed(2);
