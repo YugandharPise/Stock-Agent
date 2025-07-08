@@ -12,8 +12,8 @@ const SCOPES = [
 
 const CREDENTIALS_PATH = path.join(__dirname, "oauth2-credentials.json");
 const TOKEN_PATH = path.join(__dirname, "token.json");
-const DRIVE_PARENT_FOLDER_ID = "1sVF6hhlGdBnLtd8jj7a4LcgU8wXnq9OB";
-const DRIVE_REPORTS_FOLDER_ID = "1dclQ2fHWH-bBdjFIS3fKOdV_pCTHmIN1";
+const DRIVE_PARENT_FOLDER_ID = "1IsjdBQapOOcJZcHW7RGRU-avLMCOf79S";
+const DRIVE_REPORTS_FOLDER_ID = "1VUnSvxReJjrPXVF7haGDu3HTq8UzyUmn";
 
 async function authorize() {
   try {
