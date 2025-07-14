@@ -5,11 +5,12 @@ const { chromium } = require('playwright');
 
 const BASE_DIR = path.join(__dirname, 'screenshots');
 const PROFILE_PATH = path.join(__dirname, 'playwright-session');
-const CHROME_PATH = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+const PROFILE_PATH_2 = path.join(__dirname, 'playwright-session-2');
+const CHROME_PATH = 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe';
 
-function createFolders(stockName) {
+function createFolders(stockSymbol) {
   const timestamp = dayjs().format("YYYY-MM-DD_HH-mm-ss");
-  const basePath = path.join(BASE_DIR, `${stockName}-${timestamp}`);
+  const basePath = path.join(BASE_DIR, `${stockSymbol}-${timestamp}`);
 
   const moneycontrolDir = path.join(basePath, 'Moneycontrol');
   const tradingViewDir = path.join(basePath, 'TradingView');
@@ -19,97 +20,106 @@ function createFolders(stockName) {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   });
 
-  return {
-    basePath,
-    moneycontrolDir,
-    tradingViewDir,
-    stockReportDir,
-  };
+  return { basePath, moneycontrolDir, tradingViewDir, stockReportDir };
+}
+
+async function configureTradingView(page) {
+  try {
+    // Hide sidebar
+    const hideButton = await page.$('button[aria-label="Hide sidebar"]');
+    if (hideButton) {
+      await hideButton.click();
+      console.log("Sidebar hidden");
+      await page.waitForTimeout(1000);
+    }
+
+    // Set to 1Y view
+    const oneYearButton = await page.$('button[data-name="date-range-tab-12M"]');
+    if (oneYearButton) {
+      await oneYearButton.click();
+      console.log("Set to 1Y view");
+      await page.waitForTimeout(3000);
+    }
+  } catch (e) {
+    console.warn("TradingView configuration skipped:", e.message);
+  }
 }
 
 async function takeAllScreenshots(stockName, stockSymbol) {
   const { basePath, moneycontrolDir, tradingViewDir, stockReportDir } = createFolders(stockName);
-
   const browser = await chromium.launchPersistentContext(PROFILE_PATH, {
     headless: false,
     executablePath: CHROME_PATH,
   });
 
   const page = await browser.newPage();
-  page.setDefaultTimeout(180000); // 3 minutes for every step
-
+  page.setDefaultTimeout(120000); // 2 minutes
   const allScreenshots = [];
 
   try {
     // Moneycontrol Stock Report PDF
     try {
+      console.log("Navigating to Moneycontrol reports");
       await page.goto('https://www.moneycontrol.com/stock-reports/account', {
         waitUntil: 'load',
-        timeout: 180000,
+        timeout: 60000
       });
       await page.waitForTimeout(2000);
 
-      await page.fill('input.report_search_input', stockName, { timeout: 30000 });
+      console.log(`Searching for ${stockName}`);
+      await page.fill('input.report_search_input', stockName, { timeout: 60000 });
       await page.waitForTimeout(1000);
 
+      console.log("Selecting first suggestion");
       const firstSuggestion = page.locator('a.autosug_list_item').first();
       const [newPage] = await Promise.all([
         page.context().waitForEvent('page'),
-        firstSuggestion.click({ timeout: 30000, noWaitAfter: true }),
+        firstSuggestion.click({ timeout: 60000, noWaitAfter: true }),
       ]);
 
       await newPage.waitForLoadState('load', { timeout: 60000 });
-      await newPage.waitForTimeout(2000);
+      await newPage.waitForTimeout(3000);
 
       const pdfFrame = await newPage.$('iframe');
       if (pdfFrame) {
         const pdfUrl = await pdfFrame.getAttribute('src');
         const pdfPath = path.join(stockReportDir, 'report.pdf');
         const axios = require('axios');
-        const maxRetries = 3;
-        let attempt = 0;
-        let success = false;
-
-        while (attempt < maxRetries && !success) {
-          try {
-            const pdfResponse = await axios.get(pdfUrl, {
-              responseType: 'arraybuffer',
-              timeout: 60000,
-              headers: { "User-Agent": "Mozilla/5.0" }
-            });
-            fs.writeFileSync(pdfPath, pdfResponse.data);
-            success = true;
-          } catch (e) {
-            attempt++;
-            await newPage.waitForTimeout(2000);
-          }
-        }
-
-        if (success) {
+        
+        console.log("Downloading PDF report");
+        try {
+          const pdfResponse = await axios.get(pdfUrl, {
+            responseType: 'arraybuffer',
+            timeout: 60000,
+            headers: { "User-Agent": "Mozilla/5.0" }
+          });
+          fs.writeFileSync(pdfPath, pdfResponse.data);
           allScreenshots.push(pdfPath);
-          console.log("Stock report PDF downloaded successfully.");
-        } else {
-          console.warn("Stock report PDF download failed after retries.");
+          console.log("PDF report downloaded");
+        } catch (e) {
+          console.error("PDF download failed, capturing screenshot instead");
+          const fallbackShot = path.join(stockReportDir, 'report_preview.png');
+          await newPage.screenshot({ path: fallbackShot });
+          allScreenshots.push(fallbackShot);
         }
       } else {
+        console.log("No PDF frame found, capturing screenshot");
         const fallbackShot = path.join(stockReportDir, 'report_preview.png');
         await newPage.screenshot({ path: fallbackShot });
         allScreenshots.push(fallbackShot);
-        console.log("Stock report fallback screenshot captured.");
       }
-
       await newPage.close();
     } catch (err) {
-      console.error("Error capturing Moneycontrol Stock Report:", err.message);
+      console.error("Moneycontrol report error:", err.message);
       await page.screenshot({ path: path.join(stockReportDir, 'error.png') });
     }
 
-    // Moneycontrol Overview
+// Moneycontrol Overview
     try {
       await page.goto('https://www.moneycontrol.com/', { waitUntil: 'load', timeout: 180000 });
       await page.fill('#search_str', '');
       await page.waitForTimeout(300);
-      await page.type('#search_str', stockName, { delay: 150 });
+      await page.type('#search_str', stockName, { timeout : 60000 });
 
       await page.waitForSelector('.suglist.scrollBar a', { timeout: 60000 });
       const firstResult = page.locator('.suglist.scrollBar a').first();
@@ -203,40 +213,49 @@ async function takeAllScreenshots(stockName, stockSymbol) {
       await page.screenshot({ path: path.join(moneycontrolDir, 'error.png') });
     }
 
-    // TradingView
-    const chartUrl = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(stockSymbol)}`;
+    // TradingView - First Account
     try {
-      await page.goto(chartUrl, { waitUntil: 'load', timeout: 180000 });
-      await page.waitForTimeout(4000);
-
-      const screenshotPath = path.join(tradingViewDir, 'tradingview_chart.png');
+      console.log("Capturing TradingView (1st account)");
+      const chartUrl = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(stockSymbol)}`;
+      await page.goto(chartUrl, { waitUntil: 'load', timeout: 120000 });
+      await page.waitForTimeout(5000);
+      
+      await configureTradingView(page);
+      
+      const screenshotPath = path.join(tradingViewDir, 'tradingview_1.png');
       await page.screenshot({ path: screenshotPath });
       allScreenshots.push(screenshotPath);
-      console.log("TradingView chart captured.");
+      console.log("TradingView captured (1st account)");
     } catch (err) {
-      console.error("Error capturing TradingView chart:", err.message);
-      await page.screenshot({ path: path.join(tradingViewDir, 'error.png') });
+      console.error("TradingView error (1st):", err.message);
+      await page.screenshot({ path: path.join(tradingViewDir, 'error_1.png') });
     }
+
+    // TradingView - Second Account
     try {
-    const secondContext = await chromium.launchPersistentContext('./playwright-session-2', {
-      headless: false,
-      executablePath: CHROME_PATH,
-    });
+      console.log("Capturing TradingView (2nd account)");
+      const secondContext = await chromium.launchPersistentContext(PROFILE_PATH_2, {
+        headless: false,
+        executablePath: CHROME_PATH,
+      });
 
-    const secondPage = await secondContext.newPage();
-    await secondPage.goto(chartUrl, { waitUntil: 'load', timeout: 180000 });
-    await secondPage.waitForTimeout(4000);
-
-    const screenshotPath2 = path.join(tradingViewDir, 'tradingview_chart_2.png');
-    await secondPage.screenshot({ path: screenshotPath2 });
-    allScreenshots.push(screenshotPath2);
-
-    console.log("Second TradingView chart captured.");
-
-    await secondContext.close();
-  } catch (err) {
-    console.error("Error capturing TradingView second account: " + err.message);
-  }
+      const secondPage = await secondContext.newPage();
+      await secondPage.goto(`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(stockSymbol)}`, {
+        waitUntil: 'load',
+        timeout: 120000
+      });
+      await secondPage.waitForTimeout(5000);
+      
+      await configureTradingView(secondPage);
+      
+      const screenshotPath2 = path.join(tradingViewDir, 'tradingview_2.png');
+      await secondPage.screenshot({ path: screenshotPath2 });
+      allScreenshots.push(screenshotPath2);
+      console.log("TradingView captured (2nd account)");
+      await secondContext.close();
+    } catch (err) {
+      console.error("TradingView error (2nd):", err.message);
+    }
 
   } finally {
     await browser.close();
