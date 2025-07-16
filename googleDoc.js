@@ -12,8 +12,25 @@ const SCOPES = [
 
 const CREDENTIALS_PATH = path.join(__dirname, "oauth2-credentials.json");
 const TOKEN_PATH = path.join(__dirname, "token.json");
-const DRIVE_PARENT_FOLDER_ID = "1IsjdBQapOOcJZcHW7RGRU-avLMCOf79S";
-const DRIVE_REPORTS_FOLDER_ID = "1VUnSvxReJjrPXVF7haGDu3HTq8UzyUmn";
+const DRIVE_PARENT_FOLDER_ID = "1sVF6hhlGdBnLtd8jj7a4LcgU8wXnq9OB";
+const DRIVE_REPORTS_FOLDER_ID = "1dclQ2fHWH-bBdjFIS3fKOdV_pCTHmIN1";
+
+async function uploadWithRetry(drive, fileMetadata, media, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const uploaded = await drive.files.create({
+        resource: fileMetadata,
+        media,
+        fields: 'id',
+      });
+      return uploaded; // success
+    } catch (err) {
+      console.warn(`Upload attempt ${attempt} failed: ${err.message}`);
+      if (attempt === maxRetries) throw err; // final fail
+      await new Promise(r => setTimeout(r, 1000 * attempt)); // exponential backoff
+    }
+  }
+}
 
 async function authorize() {
   try {
@@ -114,6 +131,12 @@ async function saveImagesToGoogleDoc(stockName, stockSymbol, imagePaths = [], us
       throw new Error("Failed to create Google Doc");
     }
 
+    // Make it public:
+    await drive.permissions.create({
+      fileId: documentId,
+      requestBody: { role: 'reader', type: 'anyone' },
+    });
+
     console.log("Google Document created: " + docTitle);
 
     if (comment && comment.trim()) {
@@ -142,8 +165,9 @@ async function saveImagesToGoogleDoc(stockName, stockSymbol, imagePaths = [], us
       if (userImagePath && fs.existsSync(userImagePath)) {
         const fileMetadata = { name: `${uuidv4()}.png`, parents: [DRIVE_PARENT_FOLDER_ID] };
         const media = { mimeType: "image/png", body: fs.createReadStream(userImagePath) };
-        const uploaded = await drive.files.create({ resource: fileMetadata, media, fields: "id" });
+        const uploaded = await uploadWithRetry(drive, fileMetadata, media);
         await drive.permissions.create({ fileId: uploaded.data.id, requestBody: { role: "reader", type: "anyone" } });
+        await new Promise(resolve => setTimeout(resolve, 1000));
         const publicUrl = `https://drive.google.com/uc?id=${uploaded.data.id}`;
 
         const insertIndex = await getDocumentEndIndex(documentId, docs);
@@ -168,7 +192,6 @@ async function saveImagesToGoogleDoc(stockName, stockSymbol, imagePaths = [], us
             ]
           }
         });
-        console.log("Inserted user uploaded image.");
         uploadedImageFileIds.push(uploaded.data.id);
       }
     for (const filePath of sortedImages) {
@@ -180,7 +203,7 @@ async function saveImagesToGoogleDoc(stockName, stockSymbol, imagePaths = [], us
         const pdfName = `${stockName}-${timestamp}-report.pdf`;
         const fileMetadata = { name: pdfName, parents: [DRIVE_REPORTS_FOLDER_ID] };
         const media = { mimeType: "application/pdf", body: fs.createReadStream(filePath) };
-        const uploaded = await drive.files.create({ resource: fileMetadata, media, fields: "id" });
+        const uploaded = await uploadWithRetry(drive, fileMetadata, media);
         if (!uploaded.data.id) continue;
 
         await drive.permissions.create({ fileId: uploaded.data.id, requestBody: { role: "reader", type: "anyone" } });
@@ -203,10 +226,11 @@ async function saveImagesToGoogleDoc(stockName, stockSymbol, imagePaths = [], us
       // upload images
       const fileMetadata = { name: `${uuidv4()}.png`, parents: [DRIVE_PARENT_FOLDER_ID] };
       const media = { mimeType: "image/png", body: fs.createReadStream(filePath) };
-      const uploaded = await drive.files.create({ resource: fileMetadata, media, fields: "id" });
+      const uploaded = await uploadWithRetry(drive, fileMetadata, media);
       if (!uploaded.data.id) continue;
 
       await drive.permissions.create({ fileId: uploaded.data.id, requestBody: { role: "reader", type: "anyone" } });
+      await new Promise(resolve => setTimeout(resolve, 1000));
       uploadedImageFileIds.push(uploaded.data.id);
 
       const publicUrl = `https://drive.google.com/uc?id=${uploaded.data.id}`;
@@ -242,7 +266,7 @@ async function saveImagesToGoogleDoc(stockName, stockSymbol, imagePaths = [], us
       await docs.documents.batchUpdate({ documentId, requestBody: { requests } });
     }
 
-    // download the final PDF
+    /* download the final PDF
     try {
       const screenshotsDir = path.join(__dirname, "screenshots");
       if (!fs.existsSync(screenshotsDir)) fs.mkdirSync(screenshotsDir, { recursive: true });
@@ -259,28 +283,14 @@ async function saveImagesToGoogleDoc(stockName, stockSymbol, imagePaths = [], us
         }));
     } catch (err) {
       console.error("Error downloading PDF: " + err.message);
-    }
+    } */
 
     console.log("Google Document ready at: https://docs.google.com/document/d/" + documentId);
     
-    // clean up images on Drive
-    console.log("Deleted image from Drive.");
-    for (const fileId of uploadedImageFileIds) {
-      try {
-        await drive.files.delete({ fileId });
-      } catch (e) {
-        console.warn("Could not delete image with id " + fileId + ": " + e.message);
-      }
-    }
-
-    // clean up local
-    const grandParent = path.resolve(path.dirname(path.dirname(imagePaths[0])));
-    if (fs.existsSync(grandParent)) {
-      fs.rmSync(grandParent, { recursive: true, force: true });
-      console.log("Deleted folder: " + grandParent);
-    }
-    
-    return `https://docs.google.com/document/d/${documentId}`;
+    return {
+      docUrl: `https://docs.google.com/document/d/${documentId}`,
+      uploadedImageFileIds
+    };
 
   } catch (error) {
     console.error("Error in saveImagesToGoogleDoc: " + error.message);
@@ -289,4 +299,4 @@ async function saveImagesToGoogleDoc(stockName, stockSymbol, imagePaths = [], us
 }
 
 
-module.exports = { saveImagesToGoogleDoc };
+module.exports = { saveImagesToGoogleDoc, authorize };
