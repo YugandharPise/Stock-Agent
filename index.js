@@ -3,8 +3,9 @@ const bodyParser = require('body-parser');
 const fileUpload = require('express-fileupload');
 const path = require('path');
 const fs = require('fs');
+const { google } = require('googleapis');
 const { takeAllScreenshots } = require('./screenshot');
-const { saveImagesToGoogleDoc } = require('./googleDoc');
+const { saveImagesToGoogleDoc, authorize } = require('./googleDoc');
 
 const app = express();
 const PORT = 3000;
@@ -50,6 +51,8 @@ app.post('/screenshot', async (req, res) => {
   const startTime = Date.now();
   let tempFolderPath = null;
   let userImagePath = null;
+  let uploadedImageFileIds = []; 
+  let docUrl = null;
 
   try {
     const stockName = req.body.stockName?.trim();
@@ -83,7 +86,10 @@ app.post('/screenshot', async (req, res) => {
       console.log("User image uploaded to: " + userImagePath);
     }
 
-    const docUrl = await saveImagesToGoogleDoc(stockName, stockSymbol, screenshots, userImagePath, comment);
+    // Use correct destructuring and store values
+    const result = await saveImagesToGoogleDoc(stockName, stockSymbol, screenshots, userImagePath, comment);
+    docUrl = result.docUrl;
+    uploadedImageFileIds = result.uploadedImageFileIds;
 
     const endTime = Date.now();
     const totalTimeSeconds = ((endTime - startTime) / 1000).toFixed(2);
@@ -106,20 +112,39 @@ app.post('/screenshot', async (req, res) => {
     }
 
     try {
-      if (userImagePath && fs.existsSync(userImagePath)) {
-        fs.unlinkSync(userImagePath);
-        console.log("Deleted user uploaded image: " + userImagePath);
+      // Local cleanup
+      const screenshotsBase = path.join(__dirname, 'screenshots');
+      if (fs.existsSync(screenshotsBase)) {
+        fs.rmSync(screenshotsBase, { recursive: true, force: true });
+        console.log("Deleted entire screenshots folder.");
       }
-      if (tempFolderPath && fs.existsSync(tempFolderPath)) {
-        const files = fs.readdirSync(tempFolderPath);
-        for (const file of files) {
-          const filePath = path.join(tempFolderPath, file);
-          fs.unlinkSync(filePath);
-          console.log("Deleted temporary file: " + filePath);
+
+      // Delete entire Drive folder contents
+      const auth = await authorize();
+      const drive = google.drive({ version: 'v3', auth });
+
+      const DRIVE_PARENT_FOLDER_ID = '1sVF6hhlGdBnLtd8jj7a4LcgU8wXnq9OB'; // Replace with your actual ID
+
+      const listResponse = await drive.files.list({
+        q: `'${DRIVE_PARENT_FOLDER_ID}' in parents`,
+        fields: 'files(id, name)',
+      });
+
+      const filesInFolder = listResponse.data.files || [];
+
+      if (filesInFolder.length === 0) {
+        console.log(`No files found in Drive folder ${DRIVE_PARENT_FOLDER_ID}.`);
+      } else {
+        for (const file of filesInFolder) {
+          try {
+            await drive.files.delete({ fileId: file.id });
+          } catch (e) {
+            console.warn(`Could not delete Drive file ${file.id}: ${e.message}`);
+          }
         }
-        fs.rmdirSync(tempFolderPath);
-        console.log("Deleted temporary folder: " + tempFolderPath);
+        console.log("Cleared all contents of Drive folder");
       }
+
     } catch (cleanupErr) {
       console.error("Error during cleanup: " + cleanupErr.message);
     }
