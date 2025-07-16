@@ -6,7 +6,7 @@ const { chromium } = require('playwright');
 const BASE_DIR = path.join(__dirname, 'screenshots');
 const PROFILE_PATH = path.join(__dirname, 'playwright-session');
 const PROFILE_PATH_2 = path.join(__dirname, 'playwright-session-2');
-const CHROME_PATH = 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe';
+const CHROME_PATH = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 
 function createFolders(stockSymbol) {
   const timestamp = dayjs().format("YYYY-MM-DD_HH-mm-ss");
@@ -26,11 +26,15 @@ function createFolders(stockSymbol) {
 async function configureTradingView(page) {
   try {
     // Hide sidebar
-    const hideButton = await page.$('button[aria-label="Hide sidebar"]');
-    if (hideButton) {
-      await hideButton.click();
-      console.log("Sidebar hidden");
-      await page.waitForTimeout(1000);
+    const toggleSidebar = page.locator('button[aria-label="Watchlist, details and news"]');
+    await toggleSidebar.waitFor({ timeout: 5000 });
+
+    const isSidebarOpen = await toggleSidebar.getAttribute('aria-pressed');
+    if (isSidebarOpen === 'true') {
+      await toggleSidebar.click();
+      console.log('Sidebar was open, now closed.');
+    } else {
+      console.log('Sidebar already closed.');
     }
 
     // Set to 1Y view
@@ -62,12 +66,12 @@ async function takeAllScreenshots(stockName, stockSymbol) {
       console.log("Navigating to Moneycontrol reports");
       await page.goto('https://www.moneycontrol.com/stock-reports/account', {
         waitUntil: 'load',
-        timeout: 60000
+        timeout: 30000
       });
       await page.waitForTimeout(2000);
 
       console.log(`Searching for ${stockName}`);
-      await page.fill('input.report_search_input', stockName, { timeout: 60000 });
+      await page.fill('input.report_search_input', stockName, { timeout: 10000 });
       await page.waitForTimeout(1000);
 
       console.log("Selecting first suggestion");
@@ -116,13 +120,19 @@ async function takeAllScreenshots(stockName, stockSymbol) {
 
 // Moneycontrol Overview
     try {
-      await page.goto('https://www.moneycontrol.com/', { waitUntil: 'load', timeout: 180000 });
-      await page.fill('#search_str', '');
-      await page.waitForTimeout(300);
-      await page.type('#search_str', stockName, { timeout : 60000 });
+      await page.goto('https://www.moneycontrol.com/', { waitUntil: 'load', timeout: 60000 });
 
-      await page.waitForSelector('.suglist.scrollBar a', { timeout: 60000 });
+      // Fill the search box directly in one go
+      await page.type('#search_str', stockName, { delay : 150 });
+      console.log(`Entered stock name "${stockName}" in search box.`);
+
+      // Wait 1 seconds for the autosuggest list to appear and stabilize
+      await page.waitForTimeout(1000);
+
       const firstResult = page.locator('.suglist.scrollBar a').first();
+
+      // Wait for the first result to be visible (extra safety)
+      await firstResult.waitFor({ timeout: 10000 });
 
       await Promise.all([
         page.waitForNavigation({ waitUntil: 'load', timeout: 180000 }),
@@ -130,6 +140,7 @@ async function takeAllScreenshots(stockName, stockSymbol) {
       ]);
 
       await page.waitForTimeout(3000);
+      console.log("Selected topmost result for stock.");
 
       // Scroll screenshots
       let index = 1;
@@ -158,31 +169,79 @@ async function takeAllScreenshots(stockName, stockSymbol) {
         index++;
         await page.waitForTimeout(1000);
       }
-
+      
+      await page.waitForTimeout(5000);
       // Financials tabs
       try {
         const financialsSection = page.locator('div#financials.clearfix');
         if (await financialsSection.count() > 0 && await financialsSection.isVisible()) {
           const financialsTabs = [
-            { label: 'Net Profit', selector: 'a[href="#C-12-ov-net-profit"]', name: 'financials_netprofit' },
-            { label: 'Debt to Equity', selector: 'a[href="#C-12-ov-debt-to-equity"]', name: 'financials_debttoequity' },
-            { label: 'Quarterly Results', selector: 'label#quarc span.radio_button_text', name: 'financials_quarterly' },
-            { label: 'Quarterly Net Profit', selector: 'a[href="#C-3-ov-net-profit"]', name: 'financials_qnetprofit' }
+            {
+              label: 'Net Profit',
+              alternatives: ['#S-12-ov-net-profit', '#C-12-ov-net-profit'],
+              name: 'financials_netprofit'
+            },
+            {
+              label: 'Debt to Equity',
+              alternatives: ['#S-12-ov-debt-to-equity', '#C-12-ov-debt-to-equity'],
+              name: 'financials_debttoequity'
+            },
+            {
+              label: 'Quarterly Results',
+              selector: 'label#quar span.radio_button_text',
+              name: 'financials_quarterly'
+            },
+            {
+              label: 'Quarterly Net Profit',
+              alternatives: ['#S-3-ov-net-profit', '#C-3-ov-net-profit'],
+              name: 'financials_qnetprofit'
+            }
           ];
 
           for (const tab of financialsTabs) {
             try {
-              await page.click(tab.selector, { timeout: 30000 });
-              await page.waitForTimeout(2000);
+              console.log(`Trying to capture: ${tab.label}`);
+              let tabElement;
+
+              if (tab.alternatives) {
+                for (const href of tab.alternatives) {
+                  const sel = `a[href^="${href}"]`;
+                  const locator = page.locator(sel);
+                  if (await locator.count() > 0 && await locator.isVisible()) {
+                    tabElement = locator;
+                    console.log(`Using selector ${sel} for ${tab.label}`);
+                    break;
+                  } else {
+                    console.log(`Selector ${sel} found but not visible, trying next.`);
+                  }
+                }
+                if (!tabElement) throw new Error(`No visible selector found for ${tab.label}`);
+              } else {
+                tabElement = page.locator(tab.selector);
+                if (!(await tabElement.isVisible())) {
+                  throw new Error(`Selector for ${tab.label} not visible`);
+                }
+              }
+
+              await tabElement.waitFor({ timeout: 8000 });
+              await tabElement.scrollIntoViewIfNeeded();
+              await tabElement.click({ timeout: 5000 });
+              await page.waitForTimeout(3000);
+
               const tabShot = path.join(moneycontrolDir, `moneycontrol_${tab.name}.png`);
               await page.screenshot({ path: tabShot });
               allScreenshots.push(tabShot);
+              console.log(`Captured: ${tab.label}`);
             } catch (e) {
-              console.warn(`Could not capture tab ${tab.label}`);
+              console.warn(`Could not capture tab ${tab.label}: ${e.message}`);
             }
           }
+        } else {
+          console.log("Financials section missing for this stock.");
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Error in Financials block: ", e.message);
+      }
 
       // Shareholding tabs
       try {
@@ -192,22 +251,31 @@ async function takeAllScreenshots(stockName, stockSymbol) {
             { label: 'FII', selector: 'a#fii_tb', name: 'shareholding_fii' },
             { label: 'DII', selector: 'a#dii_tb', name: 'shareholding_dii' },
             { label: 'Public', selector: 'a#public_tb', name: 'shareholding_public' },
-            { label: 'Others', selector: 'a#others_tb', name: 'shareholding_others' },
+            { label: 'Others', selector: 'a#others_tb', name: 'shareholding_others' }
           ];
 
           for (const tab of shareTabs) {
             try {
-              await page.click(tab.selector, { timeout: 30000 });
-              await page.waitForTimeout(1500);
+              const tabElement = page.locator(tab.selector);
+              await tabElement.waitFor({ timeout: 8000 });
+              await tabElement.scrollIntoViewIfNeeded();
+              await tabElement.click({ timeout: 5000 });
+              await page.waitForTimeout(2000);
+
               const tabShot = path.join(moneycontrolDir, `moneycontrol_${tab.name}.png`);
               await page.screenshot({ path: tabShot });
               allScreenshots.push(tabShot);
+              console.log(`Captured: ${tab.label}`);
             } catch (e) {
-              console.warn(`Could not capture tab ${tab.label}`);
+              console.warn(`Could not capture shareholding tab ${tab.label}: ${e.message}`);
             }
           }
+        } else {
+          console.log("Shareholding section missing for this stock.");
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Error in Shareholding block: ", e.message);
+      }
     } catch (err) {
       console.error("Error capturing Moneycontrol overview:", err.message);
       await page.screenshot({ path: path.join(moneycontrolDir, 'error.png') });
@@ -218,7 +286,7 @@ async function takeAllScreenshots(stockName, stockSymbol) {
       console.log("Capturing TradingView (1st account)");
       const chartUrl = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(stockSymbol)}`;
       await page.goto(chartUrl, { waitUntil: 'load', timeout: 120000 });
-      await page.waitForTimeout(5000);
+      await page.waitForTimeout(10000);
       
       await configureTradingView(page);
       
@@ -244,7 +312,7 @@ async function takeAllScreenshots(stockName, stockSymbol) {
         waitUntil: 'load',
         timeout: 120000
       });
-      await secondPage.waitForTimeout(5000);
+      await secondPage.waitForTimeout(10000);
       
       await configureTradingView(secondPage);
       
