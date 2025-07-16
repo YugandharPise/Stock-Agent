@@ -188,13 +188,18 @@ async function takeAllScreenshots(stockName, stockSymbol) {
             },
             {
               label: 'Quarterly Results',
-              selector: 'label#quar span.radio_button_text',
+              selector: 'label#quarc',
               name: 'financials_quarterly'
             },
             {
               label: 'Quarterly Net Profit',
               alternatives: ['#S-3-ov-net-profit', '#C-3-ov-net-profit'],
               name: 'financials_qnetprofit'
+            },
+            {
+              label: 'Quarterly EPS',
+              alternatives: ['#S-3-ov-eps', '#C-3-ov-eps'],
+              name: 'financials_eps'
             }
           ];
 
