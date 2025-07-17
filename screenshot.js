@@ -188,7 +188,7 @@ async function takeAllScreenshots(stockName, stockSymbol) {
             },
             {
               label: 'Quarterly Results',
-              selector: 'label#quarc',
+              selector: ['label#quarc span.radio_button_text', 'label#quar span.radio_button_text'],
               name: 'financials_quarterly'
             },
             {
@@ -221,11 +221,24 @@ async function takeAllScreenshots(stockName, stockSymbol) {
                   }
                 }
                 if (!tabElement) throw new Error(`No visible selector found for ${tab.label}`);
+              } else if (Array.isArray(tab.selector)) {
+                for (const sel of tab.selector) {
+                  const locator = page.locator(sel);
+                  if (await locator.count() > 0 && await locator.isVisible()) {
+                    tabElement = locator;
+                    console.log(`Using selector ${sel} for ${tab.label}`);
+                    break;
+                  } else {
+                    console.log(`Selector ${sel} found but not visible, trying next.`);
+                  }
+                }
+                if (!tabElement) throw new Error(`No visible selector found for ${tab.label}`);
               } else {
                 tabElement = page.locator(tab.selector);
                 if (!(await tabElement.isVisible())) {
                   throw new Error(`Selector for ${tab.label} not visible`);
                 }
+                console.log(`Using single selector ${tab.selector} for ${tab.label}`);
               }
 
               await tabElement.waitFor({ timeout: 8000 });
