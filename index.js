@@ -123,7 +123,7 @@ app.post('/screenshot', async (req, res) => {
       const auth = await authorize();
       const drive = google.drive({ version: 'v3', auth });
 
-      const DRIVE_PARENT_FOLDER_ID = '1sVF6hhlGdBnLtd8jj7a4LcgU8wXnq9OB'; // Replace with your actual ID
+      const DRIVE_PARENT_FOLDER_ID = '1IsjdBQapOOcJZcHW7RGRU-avLMCOf79S'; // Replace with your actual ID
 
       const listResponse = await drive.files.list({
         q: `'${DRIVE_PARENT_FOLDER_ID}' in parents`,
