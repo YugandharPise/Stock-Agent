@@ -177,6 +177,11 @@ async function takeAllScreenshots(stockName, stockSymbol) {
         if (await financialsSection.count() > 0 && await financialsSection.isVisible()) {
           const financialsTabs = [
             {
+              label: 'Revenue',
+              alternatives: ['#S-12-ov-revenue', '#C-12-ov-revenue'],
+              name: 'financials_netprofit'
+            },
+            {
               label: 'Net Profit',
               alternatives: ['#S-12-ov-net-profit', '#C-12-ov-net-profit'],
               name: 'financials_netprofit'
@@ -266,6 +271,7 @@ async function takeAllScreenshots(stockName, stockSymbol) {
         const shareholdingSection = page.locator('div#sharepattern');
         if (await shareholdingSection.count() > 0 && await shareholdingSection.isVisible()) {
           const shareTabs = [
+            { label: 'Promoter', selector: 'a#promoter_tb', name: 'shareholding_promoter' },
             { label: 'FII', selector: 'a#fii_tb', name: 'shareholding_fii' },
             { label: 'DII', selector: 'a#dii_tb', name: 'shareholding_dii' },
             { label: 'Public', selector: 'a#public_tb', name: 'shareholding_public' },
