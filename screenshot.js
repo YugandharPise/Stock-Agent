@@ -179,7 +179,7 @@ async function takeAllScreenshots(stockName, stockSymbol) {
             {
               label: 'Revenue',
               alternatives: ['#S-12-ov-revenue', '#C-12-ov-revenue'],
-              name: 'financials_netprofit'
+              name: 'financials_revenue'
             },
             {
               label: 'Net Profit',
